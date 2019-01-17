@@ -51,8 +51,11 @@ type ServerCommonConf struct {
 	VhostHttpPort int `json:"vhost_http_port"`
 
 	// if VhostHttpsPort equals 0, don't listen a public port for https protocol
-	VhostHttpsPort int    `json:"vhost_http_port"`
-	DashboardAddr  string `json:"dashboard_addr"`
+	VhostHttpsPort int `json:"vhost_http_port"`
+
+	VhostHttpTimeout int64 `json:"vhost_http_timeout"`
+
+	DashboardAddr string `json:"dashboard_addr"`
 
 	// if DashboardPort equals 0, dashboard is not available
 	DashboardPort int    `json:"dashboard_port"`
@@ -64,7 +67,6 @@ type ServerCommonConf struct {
 	LogLevel      string `json:"log_level"`
 	LogMaxDays    int64  `json:"log_max_days"`
 	Token         string `json:"token"`
-	AuthTimeout   int64  `json:"auth_timeout"`
 	SubDomainHost string `json:"subdomain_host"`
 	TcpMux        bool   `json:"tcp_mux"`
 
@@ -84,6 +86,7 @@ func GetDefaultServerConf() *ServerCommonConf {
 		ProxyBindAddr:     "0.0.0.0",
 		VhostHttpPort:     0,
 		VhostHttpsPort:    0,
+		VhostHttpTimeout:  60,
 		DashboardAddr:     "0.0.0.0",
 		DashboardPort:     0,
 		DashboardUser:     "admin",
@@ -94,7 +97,6 @@ func GetDefaultServerConf() *ServerCommonConf {
 		LogLevel:          "info",
 		LogMaxDays:        3,
 		Token:             "",
-		AuthTimeout:       900,
 		SubDomainHost:     "",
 		TcpMux:            true,
 		AllowPorts:        make(map[int]struct{}),
@@ -179,6 +181,16 @@ func UnmarshalServerConfFromIni(defaultCfg *ServerCommonConf, content string) (c
 		}
 	} else {
 		cfg.VhostHttpsPort = 0
+	}
+
+	if tmpStr, ok = conf.Get("common", "vhost_http_timeout"); ok {
+		v, errRet := strconv.ParseInt(tmpStr, 10, 64)
+		if errRet != nil || v < 0 {
+			err = fmt.Errorf("Parse conf error: invalid vhost_http_timeout")
+			return
+		} else {
+			cfg.VhostHttpTimeout = v
+		}
 	}
 
 	if tmpStr, ok = conf.Get("common", "dashboard_addr"); ok {
@@ -268,16 +280,6 @@ func UnmarshalServerConfFromIni(defaultCfg *ServerCommonConf, content string) (c
 				return
 			}
 			cfg.MaxPortsPerClient = v
-		}
-	}
-
-	if tmpStr, ok = conf.Get("common", "authentication_timeout"); ok {
-		v, errRet := strconv.ParseInt(tmpStr, 10, 64)
-		if errRet != nil {
-			err = fmt.Errorf("Parse conf error: authentication_timeout is incorrect")
-			return
-		} else {
-			cfg.AuthTimeout = v
 		}
 	}
 
